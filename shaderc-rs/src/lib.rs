@@ -403,9 +403,15 @@ pub enum Limit {
 ///
 /// Creating an `Compiler` object has substantial resource costs; so it is
 /// recommended to keep one object around for all tasks.
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Compiler {
     raw: *mut scs::ShadercCompiler,
 }
+
+// After reading source of https://github.com/KhronosGroup/glslang and https://github.com/google/shaderc,
+// we believe this is safe.
+unsafe impl Send for Compiler {}
+unsafe impl Sync for Compiler {}
 
 fn propagate_panic<F, T>(f: F) -> T
 where
@@ -505,7 +511,7 @@ impl Compiler {
     /// `entry_point_name` is a string defines the name of the entry point
     /// to associate with the source string.
     pub fn compile_into_spirv(
-        &mut self,
+        &self,
         source_text: &str,
         shader_kind: ShaderKind,
         input_file_name: &str,
@@ -541,7 +547,7 @@ impl Compiler {
     /// the [SPIRV-Tools](https://github.com/KhronosGroup/SPIRV-Tools/blob/master/syntax.md)
     /// project.
     pub fn compile_into_spirv_assembly(
-        &mut self,
+        &self,
         source_text: &str,
         shader_kind: ShaderKind,
         input_file_name: &str,
@@ -573,7 +579,7 @@ impl Compiler {
     /// Like `compile_into_spirv` but the result contains preprocessed source
     /// code instead of a SPIR-V binary module.
     pub fn preprocess(
-        &mut self,
+        &self,
         source_text: &str,
         input_file_name: &str,
         entry_point_name: &str,
@@ -612,7 +618,7 @@ impl Compiler {
     /// For options specified in `additional_options`, the assembling will
     /// only pick those ones suitable for assembling.
     pub fn assemble(
-        &mut self,
+        &self,
         source_assembly: &str,
         additional_options: Option<&CompileOptions>,
     ) -> Result<CompilationArtifact> {
@@ -1341,7 +1347,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_vertex_shader_into_spirv() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let result = c
             .compile_into_spirv(VOID_MAIN, ShaderKind::Vertex, "shader.glsl", "main", None)
             .unwrap();
@@ -1353,7 +1359,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_vertex_shader_into_spirv_assembly() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let result = c
             .compile_into_spirv_assembly(VOID_MAIN, ShaderKind::Vertex, "shader.glsl", "main", None)
             .unwrap();
@@ -1362,7 +1368,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_preprocess() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.add_macro_definition("E", Some("main"));
         let result = c
@@ -1373,7 +1379,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_assemble() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let result = c.assemble(VOID_MAIN_ASSEMBLY, None).unwrap();
         assert!(result.len() > 20);
         assert!(result.as_binary().first() == Some(&0x0723_0203));
@@ -1383,7 +1389,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_add_macro_definition_normal_value() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.add_macro_definition("E", Some("main"));
         let result = c
@@ -1400,7 +1406,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_add_macro_definition_empty_value() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.add_macro_definition("E", Some(""));
         let result = c
@@ -1417,7 +1423,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_add_macro_definition_no_value() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.add_macro_definition("E", None);
         let result = c
@@ -1434,7 +1440,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_clone() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.add_macro_definition("E", None);
         let o = options.clone().unwrap();
@@ -1452,7 +1458,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_source_language() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_source_language(SourceLanguage::HLSL);
         let result = c
@@ -1472,7 +1478,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_generate_debug_info() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_generate_debug_info();
         let result = c
@@ -1489,7 +1495,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_optimization_level_zero() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_optimization_level(OptimizationLevel::Zero);
         let result = c
@@ -1507,7 +1513,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_optimization_level_size() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_optimization_level(OptimizationLevel::Size);
         let result = c
@@ -1524,7 +1530,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_optimization_level_performance() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_optimization_level(OptimizationLevel::Performance);
         let result = c
@@ -1541,7 +1547,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_forced_version_profile_ok() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_forced_version_profile(450, GlslProfile::Core);
         let result = c
@@ -1561,7 +1567,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_forced_version_profile_err() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_forced_version_profile(310, GlslProfile::Es);
         let result = c.compile_into_spirv(
@@ -1580,7 +1586,7 @@ void main() { my_ssbo.x = 1.0; }";
     #[test]
     #[should_panic(expected = "Panic in include resolver!")]
     fn test_include_directive_panic() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_include_callback(|_, _, _, _| panic!("Panic in include resolver!"));
         drop(c.compile_into_spirv_assembly(
@@ -1597,7 +1603,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_include_directive_err() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_include_callback(|name, _, _, _| {
             Err(format!("Couldn't find header \"{}\"", name))
@@ -1620,7 +1626,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_include_directive_success() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_include_callback(|name, type_, _, _| {
             if name == "foo.glsl" && type_ == IncludeType::Relative {
@@ -1654,7 +1660,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_suppress_warnings() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_suppress_warnings();
         let result = c
@@ -1671,7 +1677,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_warnings_as_errors() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_warnings_as_errors();
         let result = c.compile_into_spirv(
@@ -1689,7 +1695,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_target_env_err_vulkan() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let result = c.compile_into_spirv(
             COMPAT_FRAG,
             ShaderKind::Fragment,
@@ -1706,7 +1712,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_target_env_err_opengl() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_target_env(TargetEnv::OpenGL, 0);
         let result = c.compile_into_spirv(
@@ -1739,7 +1745,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_limit() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         assert!(c
             .compile_into_spirv(
@@ -1791,7 +1797,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_auto_bind_uniforms_false() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_auto_bind_uniforms(false);
         let result = c.compile_into_spirv_assembly(
@@ -1809,7 +1815,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_auto_bind_uniforms_true() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_auto_bind_uniforms(true);
         let result = c
@@ -1831,7 +1837,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_hlsl_offsets_false() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_hlsl_offsets(false);
         let result = c
@@ -1849,7 +1855,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_hlsl_offsets_true() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_hlsl_offsets(true);
         let result = c
@@ -1867,7 +1873,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_binding_base() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_auto_bind_uniforms(true);
         options.set_binding_base(ResourceKind::Image, 44);
@@ -1890,7 +1896,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_binding_base_for_stage_effective() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_auto_bind_uniforms(true);
         options.set_binding_base_for_stage(ShaderKind::Vertex, ResourceKind::Texture, 100);
@@ -1913,7 +1919,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_compile_options_set_binding_base_for_stage_ignore() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let mut options = CompileOptions::new().unwrap();
         options.set_auto_bind_uniforms(true);
         options.set_binding_base_for_stage(ShaderKind::Fragment, ResourceKind::Texture, 100);
@@ -1936,7 +1942,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_error_compilation_error() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let result =
             c.compile_into_spirv(TWO_ERROR, ShaderKind::Vertex, "shader.glsl", "main", None);
         assert!(result.is_err());
@@ -1948,7 +1954,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_error_invalid_stage() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let result = c.compile_into_spirv(
             VOID_MAIN,
             ShaderKind::InferFromSource,
@@ -1962,7 +1968,7 @@ void main() { my_ssbo.x = 1.0; }";
 
     #[test]
     fn test_warning() {
-        let mut c = Compiler::new().unwrap();
+        let c = Compiler::new().unwrap();
         let result = c
             .compile_into_spirv(ONE_WARNING, ShaderKind::Vertex, "shader.glsl", "main", None)
             .unwrap();
